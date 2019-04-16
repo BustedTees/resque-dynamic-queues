@@ -24,7 +24,7 @@ module Resque
 
           return queues_without_dynamic if queue_names.grep(dynamic_pattern).size == 0
 
-          real_queues = Resque.queues
+          real_queues = Resque.queues.sort
           matched_queues = []
 
           while q = queue_names.shift
@@ -57,7 +57,7 @@ module Resque
             end
           end
 
-          return matched_queues.uniq.sort
+          return matched_queues.uniq
         end
 
 

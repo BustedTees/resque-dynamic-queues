@@ -59,38 +59,38 @@ describe "Dynamic Queues" do
     it "should always have a fallback pattern" do
       Resque.get_dynamic_queues.should == {'default' => ['*']}
     end
-    
+
     it "should allow setting single patterns" do
       Resque.get_dynamic_queue('foo').should == ['*']
       Resque.set_dynamic_queue('foo', ['bar'])
       Resque.get_dynamic_queue('foo').should == ['bar']
     end
-    
+
     it "should allow setting multiple patterns" do
       Resque.set_dynamic_queues({'foo' => ['bar'], 'baz' => ['boo']})
       Resque.get_dynamic_queues.should == {'foo' => ['bar'], 'baz' => ['boo'], 'default' => ['*']}
     end
-    
+
     it "should remove mapping when setting empty value" do
       Resque.get_dynamic_queues
       Resque.set_dynamic_queues({'foo' => ['bar'], 'baz' => ['boo']})
       Resque.get_dynamic_queues.should == {'foo' => ['bar'], 'baz' => ['boo'], 'default' => ['*']}
-      
+
       Resque.set_dynamic_queues({'foo' => [], 'baz' => ['boo']})
       Resque.get_dynamic_queues.should == {'baz' => ['boo'], 'default' => ['*']}
       Resque.set_dynamic_queues({'baz' => nil})
       Resque.get_dynamic_queues.should == {'default' => ['*']}
-      
+
       Resque.set_dynamic_queues({'foo' => ['bar'], 'baz' => ['boo']})
       Resque.set_dynamic_queue('foo', [])
       Resque.get_dynamic_queues.should == {'baz' => ['boo'], 'default' => ['*']}
       Resque.set_dynamic_queue('baz', nil)
       Resque.get_dynamic_queues.should == {'default' => ['*']}
     end
-    
-    
+
+
   end
-  
+
   context "basic queue patterns" do
 
     before(:each) do
@@ -124,6 +124,11 @@ describe "Dynamic Queues" do
       worker.queues.should == ["high_x", "high_y", "superhigh_z"]
     end
 
+    it "can order queues with traditional wildcard use" do
+      worker = Resque::Worker.new("high_x", "high_y", "*", "superhigh_z")
+      worker.queues.should == ["high_x", "high_y", "foo", "superhigh_z"]
+    end
+
     it "can blacklist queues" do
       worker = Resque::Worker.new("*", "!foo")
       worker.queues.should == ["high_x", "high_y", "superhigh_z"]
@@ -134,6 +139,17 @@ describe "Dynamic Queues" do
       worker.queues.should == ["foo"]
     end
 
+    it "respects the order in which queue patterns are defined" do
+      worker = Resque::Worker.new("h*", "f*")
+      worker.queues.should == ["high_x", "high_y", "foo"]
+
+      worker = Resque::Worker.new("*", "!f*")
+      worker.queues.should == ["high_x", "high_y", "superhigh_z"]
+
+      worker = Resque::Worker.new("*high*_z", "*", "!f*")
+      worker.queues.should == ["superhigh_z", "high_x", "high_y"]
+    end
+
   end
 
   context "redis backed queues" do
@@ -141,7 +157,7 @@ describe "Dynamic Queues" do
     it "can dynamically lookup queues" do
       Resque.set_dynamic_queue("mykey", ["foo", "bar"])
       worker = Resque::Worker.new("@mykey")
-      worker.queues.should == ["bar", "foo"]
+      worker.queues.should == ["foo", "bar"]
     end
 
     it "can blacklist dynamic queues" do
@@ -180,7 +196,7 @@ describe "Dynamic Queues" do
       host = `hostname`.chomp
       Resque.set_dynamic_queue(host, ["foo", "bar"])
       worker = Resque::Worker.new("@")
-      worker.queues.should == ["bar", "foo"]
+      worker.queues.should == ["foo", "bar"]
     end
 
     it "can use wildcards in dynamic queues" do
@@ -197,7 +213,7 @@ describe "Dynamic Queues" do
     it "falls back to default queues when missing" do
       Resque.set_dynamic_queue("default", ["foo", "bar"])
       worker = Resque::Worker.new("@mykey")
-      worker.queues.should == ["bar", "foo"]
+      worker.queues.should == ["foo", "bar"]
     end
 
     it "falls back to all queues when missing and no default" do

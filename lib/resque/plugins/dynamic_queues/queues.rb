@@ -19,9 +19,12 @@ module Resque
         def queues_with_dynamic
           queue_names = @queues.dup
 
-          return queues_without_dynamic if queue_names.grep(/(^!)|(^@)|(\*)/).size == 0
+          # Make sure it's a pattern wildcard and not a general wildcard.
+          dynamic_pattern = /(^!)|(^@)|((^\*[a-zA-Z0-9_-]+)|([^\*][a-zA-Z0-9_-]+\*))/
 
-          real_queues = Resque.queues
+          return queues_without_dynamic if queue_names.grep(dynamic_pattern).size == 0
+
+          real_queues = Resque.queues.sort
           matched_queues = []
 
           while q = queue_names.shift
@@ -54,7 +57,7 @@ module Resque
             end
           end
 
-          return matched_queues.uniq.sort
+          return matched_queues.uniq
         end
 
 
